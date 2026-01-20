@@ -1,0 +1,12 @@
+{
+    "camera_id": 0,
+    "smoothing_normal": 5,
+    "smoothing_precision": 20,
+    "click_dist": 30,
+    "scroll_speed": 20,
+    "frame_reduction": 100,
+    "hold_time_threshold": 0.2,
+    "double_click_speed": 0.3,
+    "auto_pause_delay": 30,
+    "swipe_threshold": 50
+}
