@@ -234,21 +234,39 @@ class ThreadedGestureController:
 
                 # 6. CURSOR & CLICK (Index Up) ☝️
                 elif fingers[1] == 1 and fingers[2] == 0:
-                    # Precision Mode (Index + Pinky UP)
+                    # Precision Mode Check
                     if fingers[4] == 1:
                         self.curr_smoothing = self.config['smoothing_precision']
                         cv2.putText(frame, "PRECISION", (20, 80), cv2.FONT_HERSHEY_PLAIN, 2, (255, 0, 255), 2)
                     else:
                         self.curr_smoothing = self.config['smoothing_normal']
 
-                    # Update Target Coordinates for Thread
-                    raw_x = np.interp(idx_x, (self.config['frame_reduction'], self.w_cam - self.config['frame_reduction']), (0, self.w_scr))
-                    raw_y = np.interp(idx_y, (self.config['frame_reduction'], self.h_cam - self.config['frame_reduction']), (0, self.h_scr))
-                    self.target_x, self.target_y = raw_x, raw_y
-
-                    # Click / Drag Logic
+                    # --- SNIPER LOGIC START ---
+                    # 1. Calculate distance FIRST
                     dist = self.get_distance((thumb_x, thumb_y), (idx_x, idx_y))
                     
+                    # 2. Define "Freeze Zone" (Click Distance + small buffer)
+                    # If fingers are closer than this, we lock the cursor to prevent jitter
+                    freeze_zone = self.config['click_dist'] + 15 
+
+                    # 3. Decision: Should we move the cursor?
+                    # Move IF: We are outside the freeze zone OR we are actively dragging
+                    if dist > freeze_zone or self.drag_active:
+                        
+                        # Map Coordinates
+                        raw_x = np.interp(idx_x, (self.config['frame_reduction'], self.w_cam - self.config['frame_reduction']), (0, self.w_scr))
+                        raw_y = np.interp(idx_y, (self.config['frame_reduction'], self.h_cam - self.config['frame_reduction']), (0, self.h_scr))
+                        
+                        # Update Targets
+                        self.target_x, self.target_y = raw_x, raw_y
+                    
+                    else:
+                        # We are in the Freeze Zone! 
+                        # Do NOT update target_x/target_y. 
+                        # The cursor stays locked on the icon while you finish the pinch.
+                        cv2.putText(frame, "LOCKED", (idx_x + 20, idx_y), cv2.FONT_HERSHEY_PLAIN, 1, (0, 255, 255), 1)
+
+                    # --- CLICK / DRAG LOGIC ---
                     if dist < self.config['click_dist']:
                         cv2.line(frame, (thumb_x, thumb_y), (idx_x, idx_y), (0, 255, 0), 2)
                         
@@ -259,7 +277,7 @@ class ThreadedGestureController:
                         if time.time() - self.drag_start_time > self.config['hold_time_threshold']:
                             if not self.drag_active:
                                 self.action_queue = "drag_start"
-                                self.drag_active = True
+                                self.drag_active = True # This UNLOCKS the cursor logic above
                                 cv2.circle(frame, (idx_x, idx_y), 15, (0, 255, 0), cv2.FILLED)
                     else:
                         # Released
